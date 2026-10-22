@@ -1,88 +1,88 @@
-# Simulirano kaljenje (Simulated Annealing)
+# Simulated Annealing
 
-Seminarski rad iz predmeta **Numerički algoritmi** — Elektrotehnički fakultet, Univerzitet u Sarajevu.
+Seminar paper for the **Numerical Algorithms** course — Faculty of Electrical Engineering, University of Sarajevo.
 
-Implementacija metaheurističkog algoritma **simuliranog kaljenja** u programskom jeziku [Julia](https://julialang.org/), testirana na standardnim benchmark funkcijama i na problemu trgovačkog putnika (TSPLIB instanca *Berlin52*).
+An implementation of the **simulated annealing** metaheuristic in [Julia](https://julialang.org/), tested on standard benchmark functions and on the traveling salesman problem (TSPLIB instance *Berlin52*).
 
-📄 **Cijeli rad:** [docs/Simulirano_Kaljenje.pdf](docs/Simulirano_Kaljenje.pdf)
+📄 **Full paper (in Bosnian):** [docs/Simulirano_Kaljenje.pdf](docs/Simulirano_Kaljenje.pdf)
 
 ---
 
-## Sadržaj
+## Contents
 
-- [O algoritmu](#o-algoritmu)
-- [Struktura repozitorija](#struktura-repozitorija)
-- [Pokretanje](#pokretanje)
-- [Rezultati](#rezultati)
-- [Literatura](#literatura)
+- [About the algorithm](#about-the-algorithm)
+- [Repository structure](#repository-structure)
+- [Running](#running)
+- [Results](#results)
+- [References](#references)
 
-## O algoritmu
+## About the algorithm
 
-Simulirano kaljenje (Kirkpatrick, Gelatt i Vecchi, 1983) zasniva se na analogiji s fizikalnim procesom kaljenja materijala: tvar se zagrije, a zatim sporo hladi kako bi dostigla stanje minimalne energije.
+Simulated annealing (Kirkpatrick, Gelatt and Vecchi, 1983) is based on an analogy with the physical process of annealing: a material is heated and then cooled slowly so that it reaches a state of minimum energy.
 
-| Fizikalni sistem            | Optimizacijski problem      |
-|-----------------------------|-----------------------------|
-| Stanje sistema              | Kandidat rješenja           |
-| Energija stanja             | Vrijednost funkcije cilja   |
-| Temperatura                 | Upravljački parametar $T$   |
-| Globalni energetski minimum | Globalni optimum            |
+| Physical system           | Optimization problem       |
+|---------------------------|----------------------------|
+| System state              | Candidate solution         |
+| State energy              | Objective function value   |
+| Temperature               | Control parameter $T$      |
+| Global energy minimum     | Global optimum             |
 
-**Metropolisov kriterij.** Bolje rješenje se uvijek prihvata, a lošije s vjerovatnoćom koja opada s pogoršanjem i temperaturom:
+**Metropolis criterion.** A better solution is always accepted; a worse one is accepted with a probability that decreases with the degradation and with the temperature:
 
 $$
-P(\text{prihvati } \mathbf{x}') =
+P(\text{accept } \mathbf{x}') =
 \begin{cases}
 1, & \Delta E < 0 \\
-e^{-\Delta E / T}, & \text{inače}
+e^{-\Delta E / T}, & \text{otherwise}
 \end{cases}
 \qquad \Delta E = E(\mathbf{x}') - E(\mathbf{x})
 $$
 
-**Raspored hlađenja.** Koristi se geometrijski raspored $T_{k+1} = \alpha \cdot T_k$, $\alpha \in (0, 1)$.
+**Cooling schedule.** A geometric schedule is used: $T_{k+1} = \alpha \cdot T_k$, $\alpha \in (0, 1)$.
 
-**Koraci algoritma** (funkcija dvije promjenljive):
+**Algorithm steps** (function of two variables):
 
-1. Energetska funkcija je sama funkcija cilja: $E(x_1, x_2) = f(x_1, x_2)$.
-2. Odabere se početno rješenje $\mathbf{x}_0$ unutar domene.
-3. Susjedno rješenje se generiše kao $\mathbf{x}' = \mathbf{x} + \Delta\mathbf{x}$, $\Delta\mathbf{x} \in (-\delta, \delta)^2$, i projektuje na opseg pretrage; prihvata se po Metropolisovom kriteriju.
-4. Algoritam staje nakon $N$ iteracija ili kada promjena funkcije padne ispod $\varepsilon$ (uz dovoljno nisku temperaturu).
-5. Temperatura se smanjuje i postupak se ponavlja od koraka 3.
+1. The energy function is the objective function itself: $E(x_1, x_2) = f(x_1, x_2)$.
+2. Choose an initial solution $\mathbf{x}_0$ within the domain.
+3. Generate a neighbor $\mathbf{x}' = \mathbf{x} + \Delta\mathbf{x}$, $\Delta\mathbf{x} \in (-\delta, \delta)^2$, and project it onto the search range; accept it according to the Metropolis criterion.
+4. Stop after $N$ iterations, or when the change in the function value drops below $\varepsilon$ (with a sufficiently low temperature).
+5. Decrease the temperature and repeat from step 3.
 
-## Struktura repozitorija
+## Repository structure
 
 ```
 .
 ├── src/
-│   └── SimulatedAnnealing.jl   # SA algoritam, testne funkcije, TSP (2-opt)
+│   └── SimulatedAnnealing.jl   # SA algorithm, test functions, TSP (2-opt)
 ├── scripts/
-│   ├── test_funkcije.jl        # SA vs. Nelder-Mead + contour plotovi
-│   └── tsp_berlin52.jl         # SA na Berlin52 TSP instanci
+│   ├── test_funkcije.jl        # SA vs. Nelder-Mead + contour plots
+│   └── tsp_berlin52.jl         # SA on the Berlin52 TSP instance
 ├── data/
-│   └── berlin52.txt            # koordinate 52 grada (TSPLIB)
+│   └── berlin52.txt            # coordinates of 52 cities (TSPLIB)
 ├── docs/
-│   ├── Simulirano_Kaljenje.pdf # seminarski rad
-│   └── images/                 # slike iz rada
-└── Project.toml                # Julia zavisnosti
+│   ├── Simulirano_Kaljenje.pdf # seminar paper
+│   └── images/                 # figures from the paper
+└── Project.toml                # Julia dependencies
 ```
 
-### Glavna funkcija
+### Main function
 
 ```julia
 SA(f, opseg, x0, delta_x, N, eps, T0; alpha=0.995) -> (x_best, f_best)
 ```
 
-| Parametar | Opis |
-|-----------|------|
-| `f`       | funkcija cilja oblika `f(x1, x2)` |
-| `opseg`   | opseg pretraživanja `[(xmin, xmax), (ymin, ymax)]` |
-| `x0`      | početna tačka |
-| `delta_x` | maksimalni pomak po svakoj koordinati |
-| `N`       | maksimalan broj iteracija |
-| `eps`     | minimalna promjena funkcije između dvije iteracije |
-| `T0`      | početna temperatura |
-| `alpha`   | faktor hlađenja (podrazumijevano `0.995`) |
+| Parameter | Description |
+|-----------|-------------|
+| `f`       | objective function of the form `f(x1, x2)` |
+| `opseg`   | search range `[(xmin, xmax), (ymin, ymax)]` |
+| `x0`      | starting point |
+| `delta_x` | maximum step along each coordinate |
+| `N`       | maximum number of iterations |
+| `eps`     | minimum change of the function value between two iterations |
+| `T0`      | initial temperature |
+| `alpha`   | cooling factor (default `0.995`) |
 
-Primjer:
+Example:
 
 ```julia
 include("src/SimulatedAnnealing.jl")
@@ -91,9 +91,9 @@ using .SimulatedAnnealing
 x, fx = SA(holder, [(-10, 10), (-10, 10)], [9.0, -9.0], [0.5, 0.5], 50_000, 1e-8, 3.0)
 ```
 
-## Pokretanje
+## Running
 
-Potrebna je Julia 1.9 ili novija. Iz korijena repozitorija:
+Requires Julia 1.9 or newer. From the repository root:
 
 ```bash
 julia --project=. -e "using Pkg; Pkg.instantiate()"
@@ -107,51 +107,51 @@ julia --project=. scripts/test_funkcije.jl
 julia --project=. scripts/tsp_berlin52.jl
 ```
 
-Skripte ispisuju rezultate u konzolu, a plotove i LaTeX tabelu spremaju u folder `results/`.
+The scripts print results to the console and save plots and a LaTeX table to the `results/` folder.
 
-## Rezultati
+## Results
 
-### Benchmark funkcije
+### Benchmark functions
 
-Algoritam je testiran na četiri dvodimenzionalne funkcije i upoređen s Nelder-Mead metodom (`Optim.jl`, `Fminbox(NelderMead())`) iz nasumične početne tačke.
+The algorithm was tested on four two-dimensional functions and compared with the Nelder-Mead method (`Optim.jl`, `Fminbox(NelderMead())`) started from a random point.
 
-| Funkcija | Formula | Globalni minimum |
-|----------|---------|------------------|
+| Function | Formula | Global minimum |
+|----------|---------|----------------|
 | Paraboloid   | $x_1^2 + x_2^2$ | $f(0,0) = 0$ |
 | Rastrigin    | $20 + x_1^2 - 10\cos(2\pi x_1) + x_2^2 - 10\cos(2\pi x_2)$ | $f(0,0) = 0$ |
 | Drop-Wave    | $-\dfrac{1 + \cos\left(12\sqrt{x_1^2 + x_2^2}\right)}{0.5(x_1^2 + x_2^2) + 2}$ | $f(0,0) = -1$ |
 | Holder Table | $-\left\lvert\sin x_1 \cos x_2 \exp\left(\left\lvert 1 - \frac{\sqrt{x_1^2+x_2^2}}{\pi}\right\rvert\right)\right\rvert$ | $f(\pm 8.055, \pm 9.6646) \approx -19.2085$ |
 
-![Contour plotovi testnih funkcija](docs/images/testne_funkcije.png)
+![Contour plots of the test functions](docs/images/testne_funkcije.png)
 
-*Crveni kružić — globalni minimum, plavi križić — najbolje SA rješenje.*
+*Red circle — global minimum, blue cross — best SA solution.*
 
-Odstupanje od globalnog minimuma (najbolji rezultat po funkciji, iz rada):
+Deviation from the global minimum (best result per function, from the paper):
 
-| Funkcija     | SA                     | Nelder-Mead            |
+| Function     | SA                     | Nelder-Mead            |
 |--------------|-----------------------:|-----------------------:|
 | Paraboloid   | $1.3 \times 10^{-5}$   | $6.7 \times 10^{-10}$  |
 | Rastrigin    | $16.9$                 | $43.2$                 |
 | Drop-Wave    | $2.0 \times 10^{-3}$   | $0.814$                |
 | Holder Table | $4.3 \times 10^{-5}$   | $11.41$                |
 
-**Zaključak:** na glatkoj, konveksnoj funkciji Nelder-Mead je precizniji, ali na višejamnim funkcijama (Drop-Wave, Holder Table) SA pouzdano pronalazi globalni minimum dok Nelder-Mead zaglavi u lokalnom. Rastrigin ostaje težak i za SA uz ove parametre. Puna tabela za sve kombinacije $T_0 \in \{1, 3, 5\}$ i $\alpha \in \{0.995, 0.998\}$ nalazi se u radu.
+**Conclusion:** on a smooth, convex function Nelder-Mead is more precise, but on multimodal functions (Drop-Wave, Holder Table) SA reliably finds the global minimum while Nelder-Mead gets stuck in a local one. Rastrigin remains hard for SA with these parameters as well. The full table for all combinations of $T_0 \in \{1, 3, 5\}$ and $\alpha \in \{0.995, 0.998\}$ is in the paper.
 
-### Problem trgovačkog putnika — Berlin52
+### Traveling salesman problem — Berlin52
 
-Konfiguracija je permutacija gradova, a susjedno rješenje se dobija **2-opt** potezom (obrtanjem dijela ture). Parametri: $T_0 = 1000$, $\alpha = 0.999$, $200\,000$ iteracija, 30 pokretanja.
+A configuration is a permutation of the cities, and a neighbor is obtained with a **2-opt** move (reversing a segment of the tour). Parameters: $T_0 = 1000$, $\alpha = 0.999$, $200\,000$ iterations, 30 runs.
 
-![Berlin52 tura](docs/images/tsp_berlin52.png)
+![Berlin52 tour](docs/images/tsp_berlin52.png)
 
-| | Dužina ture |
+| | Tour length |
 |---|---:|
-| Poznati optimum | 7542 |
-| Najbolje SA rješenje (30 pokretanja) | 7733.23 |
-| Relativna greška | ≈ 2.54 % |
+| Known optimum | 7542 |
+| Best SA solution (30 runs) | 7733.23 |
+| Relative error | ≈ 2.54 % |
 
-U radu su opisane i primjene na problem ruksaka i optimizaciju neuronskih mreža.
+The paper also describes applications to the knapsack problem and to neural network optimization.
 
-## Literatura
+## References
 
 1. S. Kirkpatrick, C. D. Gelatt, M. P. Vecchi, *Optimization by simulated annealing*, Science 220(4598), 671–680, 1983.
 2. D. Delahaye, S. Chaimatanan, M. Mongeau, *Simulated annealing: From basics to applications*, Handbook of Metaheuristics, Springer, 2018.
@@ -161,4 +161,4 @@ U radu su opisane i primjene na problem ruksaka i optimizaciju neuronskih mreža
 
 ---
 
-**Autor:** Ahmed Spahić
+**Author:** Ahmed Spahić
